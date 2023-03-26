@@ -1,29 +1,50 @@
 const {createReadStream,stat} = require("fs");
 const {promisify} = require("util");
 const {pipeline} = require("stream");
-const express = require("express");
-const e = require("express");
 async function streamMusic(req,res) 
 {
     const {musicId} = req.params;
     const tempSong = `${process.env.MUSIC_ROOT}/${musicId}.mp3`;
+    const range = req.headers.range;
     //Check if Music Id is Valid or not Based on MusicId
-    if(true)
+    if(range)
     {
-        //Stream Music to FrontEnd With Given Range (Get range start and end value from range header of request)
         const fileInfo = promisify(stat);
         const {size} = await fileInfo(tempSong);
-        console.log("Size fo Given File "+size)
-        let songStream = createReadStream(tempSong,{start:0,end:500000});
+        //Stream Music to FrontEnd With Given Range (Get range start and end value from range header of request)
+        let [start,end] = range.replace(/bytes=/,"").split("-");
+        start = parseInt(start,10);
+        end = end ? parseInt(end) : size - 1 ;
+        if(!isNaN(start) && isNaN(end))
+        {
+            start = start;
+            end = size - 1;
+        }
+        if(isNaN(start) && !isNaN(end))
+        {
+            start = size - end;
+            end = size - 1;
+        }
+        console.log(start + " " + end);
+        if(start>=size || end>=size)
+        {
+            //Fix This Issue Later (Does not returning responce)
+            // res.set({"Content-Range":`bytes */${size}`})
+            return res.status(416).json({"error":"Invalid Range for Requested Document"});
+        }
+        let songStream = createReadStream(tempSong,{start:start,end:end});
         res.set({
-            "Content-Range": `bytes ${0}-${500000}/${size}`,
+            "Content-Range": `bytes ${start}-${end}/${size}`,
             "Accept-Ranges": "bytes",
-            "Content-Length": 500000 - 0 + 1,
+            "Content-Length": end - start + 1,
             "Content-Type": "audio/mp3"
           });
         pipeline(songStream,res,err => 
             {
-                console.log(err);
+                if(err)
+                {
+                    return res.status(200).json({"error":"Internal Server Error"});
+                }
             })
        return res.status(206);
     }
