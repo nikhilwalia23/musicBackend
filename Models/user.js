@@ -40,7 +40,12 @@ const userSchema = new mongoose.Schema({
     {
         type: String,
         default:""
-    }
+    },
+    isGroup:
+    {
+        type: Map,
+        of: Boolean
+    },
 });
 //Virtual Methods Set Up and Salt value and Encrypt the password before Saving into the Database
 userSchema.virtual("password").set(function(password)

@@ -30,15 +30,16 @@ async function streamMusic(req,res)
         {
             //Fix This Issue Later (Does not returning responce)
             // res.set({"Content-Range":`bytes */${size}`})
+            console.log("here to")
             return res.status(416).json({"error":"Invalid Range for Requested Document"});
         }
-        let songStream = createReadStream(tempSong,{start:start,end:end});
-        res.set({
+        await res.set({
             "Content-Range": `bytes ${start}-${end}/${size}`,
             "Accept-Ranges": "bytes",
             "Content-Length": end - start + 1,
             "Content-Type": "audio/mp3"
           });
+        let songStream = createReadStream(tempSong,{start:start,end:end});
         pipeline(songStream,res,err => 
             {
                 if(err)
@@ -46,11 +47,11 @@ async function streamMusic(req,res)
                     return res.status(200).json({"error":"Internal Server Error"});
                 }
             })
-       return res.status(206);
+    //    return res.status(206);
     }
     else
     {
-        return res.status(404).json({"msg":"Music Not Found"});
+        return res.status(404).json({"error":"Invalid Range"});
     }
 }
 module.exports = {streamMusic};
