@@ -54,13 +54,13 @@ let addMebmerToGroup = (req,res) =>
     {
         if(group)
         {
-            //Fix Issue Here after lunch
             let members = group.users;
             for(ind in members)
             {
-                
-                console.log(members[ind]);
-                if(member==member[ind])
+                let str = JSON.stringify(members[ind]);
+                str = str.slice(1,-1);
+                console.log(str);
+                if(member==str)
                 {
                     return res.status(200).json({"error":"User Allready Added to Current Group"})
                 }
@@ -82,16 +82,49 @@ let addMebmerToGroup = (req,res) =>
         }
     }).catch((error)=> 
     {
-        console.log(groupid);
-        console.log(error);
         return res.status(400).json({error});
     });
 }
 //Remove Group Member
-//Send Group Request
 //Accept Group Request
 //Fetch Pending Group Request
 //Fetch Group Details Using Group Id
-//Join GroupBy GroupId
-
-module.exports = {createGroup,fetchGroups,addMebmerToGroup};
+let groupDetails = (req,res) => 
+{
+    let groupid = req.body.groupid;
+    Group.findById(groupid).then((gr) => 
+    {
+        if(!gr)
+        {
+            return res.status(404).json({"error":"No Group is Found With Given Id"});
+        }
+        else
+        {
+            return res.status(200).json(gr);
+        }
+    }).catch((err)=> 
+    {
+        return res.status(400).json({"error":err});
+    })
+}
+//Middlware for Check if current User is Owner of this Group  Or not
+let isOwner = (req,res,next) => 
+{
+    let owner = req.body.id;
+    let groupid = req.body.groupid;
+    Group.findById(groupid).then((group)=> 
+    {
+        //check
+        str = JSON.stringify(group.owner);
+        str = str.slice(1,-1);
+        if(str!=owner)
+        {
+            return res.status(401).json({"error":"you are not owner of this group"});
+        }
+        next();
+    }).catch((err)=>
+    {
+        return res.status(400).json({"error":"Internal Server Error"});
+    })
+}
+module.exports = {createGroup,fetchGroups,addMebmerToGroup,groupDetails,isOwner};
