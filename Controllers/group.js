@@ -1,5 +1,30 @@
 const { mongo } = require("mongoose");
 const {Group} = require("../Models/group");
+const {createClient} = require("redis")
+
+/*
+
+REDIS SET IS NOT WORKING THIS ISSUE TO USE REQEST SENT AND ACCEPT FEATURE 
+
+
+
+*/
+
+
+
+const client = createClient(
+{
+    url: process.env.REDIS_URL
+});
+
+//Make Connection to Redis Cache
+client.connect().then((msg)=> 
+{
+    console.log("Connected to Redis Server on Render");
+}).catch((err)=> 
+{
+    console.log(err);
+})
 //Create Group
 let createGroup = (req,res) => 
 {
@@ -65,16 +90,8 @@ let addMebmerToGroup = (req,res) =>
                     return res.status(200).json({"error":"User Allready Added to Current Group"})
                 }
             }
-            group.users.push(member);
-            group.save().then((g)=> 
-            {
-                //Push reqest to readis Catch and after user accept the request push to databse
-                //do this latter
-               if(g){return res.status(200).json({"msg":"User Added SucessFully"});}
-            }).catch((err) => 
-            {
-                return res.status(400).json({err});
-            });
+            sendRequest(groupid,member);
+            return res.status(200).json({"msg":"Request Sent SucessFully"});
         }
         else
         {
@@ -87,6 +104,37 @@ let addMebmerToGroup = (req,res) =>
 }
 //Remove Group Member
 //Accept Group Request
+let AcceptRequest = (req,res) => 
+{
+    let member = req.body.id;
+    let groupid = req.body.groupid;
+    Group.findById(groupid).then((group)=> 
+    {
+        if(!group)
+        {
+            return res.status(404).json({"error":"Gruop Doest Not Exists"})
+        }
+        group.users.push(member);
+        group.save().then((g)=> 
+        {
+ /*Testing Pending Yet */  client.SREM(member, groupid, (err, reply) => {
+                if (err) {return res.status(400).json({"error":err});}
+                else
+                {
+                    console.log(reply);
+                }
+              });
+            if(g){return res.status(200).json({"msg":"Added To Group SucessFully"});}
+            
+        }).catch((err) => 
+        {
+            return res.status(400).json({err});
+        });
+    }).catch((err) => 
+    {
+        return res.status(400).json({"error":err});
+    });
+}
 //Fetch Pending Group Request
 //Fetch Group Details Using Group Id
 let groupDetails = (req,res) => 
@@ -127,4 +175,45 @@ let isOwner = (req,res,next) =>
         return res.status(400).json({"error":"Internal Server Error"});
     })
 }
-module.exports = {createGroup,fetchGroups,addMebmerToGroup,groupDetails,isOwner};
+let sendRequest = (groupId,member) => 
+{
+    console.log(typeof member);
+    client.SADD(member, groupId, (err, reply) => {
+        if (err)
+        {
+            console.log(err);
+        }
+        else{console.log("here redis reply"+reply);}
+      });
+}
+let fetchPendingRequest = (req,res) => 
+{
+    //Fetch Pending Request For current user from Redis Cache set DataStrucutre
+    let id = req.body.id;
+    client.SCARD('fdfad',(err,reply)=> 
+    {
+        return res.status(200).json({"msg":"ok ok .."});
+        if(err)
+        {
+            console.log(err);
+        }
+        else
+        {
+           
+            console.log(reply);
+        }
+    })
+    
+    // client.SMEMBERS(id,(err,requests)=> 
+    // {
+    //     if(err)
+    //     {
+    //         return res.status(400).json({"error":err});
+    //     }
+    //     else
+    //     {
+    //         return res.status(200).json({"msg":"ok here"});
+    //     }
+    // })
+}
+module.exports = {createGroup,fetchGroups,addMebmerToGroup,groupDetails,isOwner,AcceptRequest,fetchPendingRequest};
