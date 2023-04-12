@@ -1,12 +1,14 @@
 const { mongo } = require("mongoose");
 const {Group} = require("../Models/group");
-const {createClient} = require("redis")
+const {createClient} = require("redis");
+const {Request} = require("../Models/request")
 
 /*
 
 REDIS SET IS NOT WORKING THIS ISSUE TO USE REQEST SENT AND ACCEPT FEATURE 
 
 
+MOTHER FUCKER REDIS CLIENT
 
 */
 
@@ -75,6 +77,7 @@ let addMebmerToGroup = (req,res) =>
 {
     let member = req.body.memberUserId;
     let groupid = req.body.groupid;
+    
     Group.findById(groupid).then((group)=>
     {
         if(group)
@@ -90,8 +93,7 @@ let addMebmerToGroup = (req,res) =>
                     return res.status(200).json({"error":"User Allready Added to Current Group"})
                 }
             }
-            sendRequest(groupid,member);
-            return res.status(200).json({"msg":"Request Sent SucessFully"});
+            sendRequest(groupid,member,res);
         }
         else
         {
@@ -108,6 +110,7 @@ let AcceptRequest = (req,res) =>
 {
     let member = req.body.id;
     let groupid = req.body.groupid;
+    let requestId = req.body.requestId;
     Group.findById(groupid).then((group)=> 
     {
         if(!group)
@@ -117,18 +120,18 @@ let AcceptRequest = (req,res) =>
         group.users.push(member);
         group.save().then((g)=> 
         {
- /*Testing Pending Yet */  client.SREM(member, groupid, (err, reply) => {
-                if (err) {return res.status(400).json({"error":err});}
-                else
-                {
-                    console.log(reply);
-                }
-              });
-            if(g){return res.status(200).json({"msg":"Added To Group SucessFully"});}
+            Request.findByIdAndDelete(requestId).then((d)=> 
+            {
+                return res.status(202).json({"msg":"Request Accepted"});
+            }).catch((err)=> 
+            {
+                return res.status(400).json({"error":"Something Wrong saving at controllers/group.js 128"});
+            });
+           
             
         }).catch((err) => 
         {
-            return res.status(400).json({err});
+            return res.status(400).json({"error":err});
         });
     }).catch((err) => 
     {
@@ -175,45 +178,56 @@ let isOwner = (req,res,next) =>
         return res.status(400).json({"error":"Internal Server Error"});
     })
 }
-let sendRequest = (groupId,member) => 
+let sendRequest = (groupId,member,res) => 
 {
-    console.log(typeof member);
-    client.SADD(member, groupId, (err, reply) => {
-        if (err)
+    Request.find({group:groupId,reciver:member}).then((request)=> 
+    {
+        
+        if(request.length!=0)
         {
-            console.log(err);
+            return res.status(400).json({"msg":"Request Allready Have Been Sent"})
         }
-        else{console.log("here redis reply"+reply);}
-      });
+        let rq = new Request({group:groupId,reciver:member});
+        rq.save().then((r)=> 
+        {
+            console.log("Request crated");
+            return res.status(400).json({"msg":"Request Sent SucessFully"})
+        }).catch((err)=> {return res.status(400).json({"error":err})});
+    }).catch((err)=> {return res.status(400).json({"error":err})})
+  
 }
 let fetchPendingRequest = (req,res) => 
 {
     //Fetch Pending Request For current user from Redis Cache set DataStrucutre
-    let id = req.body.id;
-    client.SCARD('fdfad',(err,reply)=> 
-    {
-        return res.status(200).json({"msg":"ok ok .."});
-        if(err)
-        {
-            console.log(err);
-        }
-        else
-        {
-           
-            console.log(reply);
-        }
-    })
-    
-    // client.SMEMBERS(id,(err,requests)=> 
+    // let id = req.body.id;
+    // client.SCARD('fdfad',(err,reply)=> 
     // {
+    //     return res.status(200).json({"msg":"ok ok .."});
     //     if(err)
     //     {
-    //         return res.status(400).json({"error":err});
+    //         console.log(err);
     //     }
     //     else
     //     {
-    //         return res.status(200).json({"msg":"ok here"});
+           
+    //         console.log(reply);
     //     }
     // })
+    
+   Request.find({reciver:req.body.id}).then((requests)=> 
+   {
+      if(requests.length==0)
+      {
+          return res.status(200).json({"msg":"No Pending Request"});
+      }
+      else
+      {
+        
+        return res.status(200).json({requests});
+      }
+   }).catch((err)=> 
+   {
+      return res.status(400).json({"error":err});
+   });
 }
 module.exports = {createGroup,fetchGroups,addMebmerToGroup,groupDetails,isOwner,AcceptRequest,fetchPendingRequest};
