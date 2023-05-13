@@ -58,7 +58,6 @@ async function streamMusic(req,res)
 async function dicoverSongs (req,res)
 {
     let songCount = req.body.songCount;
-    console.log(songCount)
     Song.find().limit(songCount).then((songs)=> 
     {
         return res.status(200).json(songs);
@@ -69,6 +68,24 @@ async function dicoverSongs (req,res)
             return res.status(400).json({"error":"Something Wrong Check music.js(69)"});
         }
     });
-
 }
-module.exports = {streamMusic,dicoverSongs};
+async function getSinger(req,res)
+{
+    let artistCount = req.body.artistCount;
+    let artists = new Set();
+    Song.find().limit(artistCount).then((songs)=> 
+    {
+        for(let song of songs)
+        {
+            artists.add(song.singer);
+            console.log(song.singer);
+        }
+        let arr = Array.from(artists);
+        return res.status(200).json({"singers":arr});
+    }).catch((err)=> 
+    {
+        return res.status(400).json({"error":"Something Wrong Check music.js(82)"});
+
+    });
+}
+module.exports = {streamMusic,dicoverSongs,getSinger};
