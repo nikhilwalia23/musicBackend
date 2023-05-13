@@ -1,6 +1,7 @@
 const {createReadStream,stat} = require("fs");
 const {promisify} = require("util");
 const {pipeline} = require("stream");
+const { Song } = require("../../Models/song");
 async function streamMusic(req,res) 
 {
     const {musicId} = req.params;
@@ -54,4 +55,20 @@ async function streamMusic(req,res)
         return res.status(404).json({"error":"Invalid Range"});
     }
 }
-module.exports = {streamMusic};
+async function dicoverSongs (req,res)
+{
+    let songCount = req.body.songCount;
+    console.log(songCount)
+    Song.find().limit(songCount).then((songs)=> 
+    {
+        return res.status(200).json(songs);
+    }).catch((err)=> 
+    {
+        if(err)
+        {
+            return res.status(400).json({"error":"Something Wrong Check music.js(69)"});
+        }
+    });
+
+}
+module.exports = {streamMusic,dicoverSongs};

@@ -31,6 +31,10 @@ const songSchema = new mongoose.Schema({
    hip_hop:
    {
     type: Boolean
+   },
+   backGround_imge_link:
+   {
+     type: String
    }
     
 },{ timestamps: true });
